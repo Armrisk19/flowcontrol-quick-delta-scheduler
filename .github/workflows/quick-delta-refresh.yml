@@ -1,0 +1,22 @@
+name: FLOWCONTROL Five-Minute Quick Delta
+on:
+  schedule:
+    - cron: "2/5 * * * *"
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: flowcontrol-five-minute-quick-delta
+  cancel-in-progress: true
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Refresh Quick delta
+        env:
+          GATEWAY_URL: ${{ secrets.FLOWCONTROL_GATEWAY_URL }}
+          GATEWAY_TOKEN: ${{ secrets.FLOWCONTROL_GATEWAY_TOKEN }}
+        run: |
+          test -n "$GATEWAY_URL" && test -n "$GATEWAY_TOKEN"
+          curl --fail --silent --show-error --max-time 110 --retry 2 --retry-delay 5 --retry-all-errors             -H "Authorization: Bearer $GATEWAY_TOKEN" -H "Content-Type: application/json"             -d '{"action":"REFRESH","reason":"public_github_scheduler_5m"}'             "$GATEWAY_URL/api/quick-delta-refresh"
