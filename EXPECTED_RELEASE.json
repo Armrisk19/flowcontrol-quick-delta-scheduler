@@ -1,7 +1,7 @@
 {
-  "scheduler_version": "1.4.2",
-  "gateway_version": "8.6.2",
-  "strategy_contract_version": "24.6.2",
+  "scheduler_version": "1.4.3",
+  "gateway_version": "8.6.3",
+  "strategy_contract_version": "24.6.3",
   "universe_fingerprint": "f18daa19f9ed41c06720349b",
   "declared_markets": [
     "BTC-PERP",
