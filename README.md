@@ -1,6 +1,6 @@
-# FLOWCONTROL Full-Capacity Intelligence Scheduler v1.6.0
+# FLOWCONTROL Exact Scoring Scheduler v1.6.1
 
-Every five minutes this public workflow refreshes Quick Delta, refreshes the full opportunity queue when due, refreshes direct official sources when aging, runs the quota-aware macro refresh, and verifies Gateway v9.0.0 / Strategy v25.0.0.
+Every five minutes this public workflow refreshes Quick Delta, refreshes the full opportunity queue when due, refreshes direct official sources when aging, runs the quota-aware macro refresh, and verifies Gateway v9.1.0 / Strategy v25.0.3.
 
 Repository secrets:
 

@@ -1,4 +1,4 @@
-name: FLOWCONTROL Full-Capacity Intelligence Refresh v1.6.0
+name: FLOWCONTROL Full-Capacity Intelligence Refresh v1.6.1
 
 on:
   schedule:
@@ -42,17 +42,17 @@ jobs:
           curl -sSLo .flowcontrol/opportunity-before.json --fail --connect-timeout 15 --max-time 45 "${BASE_URL}/api/opportunity-queue?action=STATUS"
           opportunity_age="$(node -e "const x=require('./.flowcontrol/opportunity-before.json'); console.log(Number(x.age_sec ?? -1))")"
           if [ "$opportunity_age" -lt 0 ] || [ "$opportunity_age" -gt 600 ]; then
-            code="$(curl -sSL --connect-timeout 15 --max-time 240 --retry 2 --retry-delay 3 --retry-all-errors -o .flowcontrol/opportunity-refresh.json -w '%{http_code}' -X POST "${BASE_URL}/api/opportunity-queue" -H "Authorization: Bearer ${FLOWCONTROL_GATEWAY_TOKEN}" -H 'Content-Type: application/json' --data '{"action":"REFRESH","reason":"github_scheduler_v1.6.0"}')"
+            code="$(curl -sSL --connect-timeout 15 --max-time 240 --retry 2 --retry-delay 3 --retry-all-errors -o .flowcontrol/opportunity-refresh.json -w '%{http_code}' -X POST "${BASE_URL}/api/opportunity-queue" -H "Authorization: Bearer ${FLOWCONTROL_GATEWAY_TOKEN}" -H 'Content-Type: application/json' --data '{"action":"REFRESH","reason":"github_scheduler_v1.6.1"}')"
             if [ "$code" = "409" ]; then sleep 12; else test "$code" = "200"; fi
           fi
 
-          quick_code="$(curl -sSL --connect-timeout 15 --max-time 210 --retry 2 --retry-delay 3 --retry-all-errors -o .flowcontrol/quick-refresh.json -w '%{http_code}' -X POST "${BASE_URL}/api/quick-delta-refresh" -H "Authorization: Bearer ${FLOWCONTROL_GATEWAY_TOKEN}" -H 'Content-Type: application/json' --data '{"action":"REFRESH","reason":"github_scheduler_v1.6.0"}')"
+          quick_code="$(curl -sSL --connect-timeout 15 --max-time 210 --retry 2 --retry-delay 3 --retry-all-errors -o .flowcontrol/quick-refresh.json -w '%{http_code}' -X POST "${BASE_URL}/api/quick-delta-refresh" -H "Authorization: Bearer ${FLOWCONTROL_GATEWAY_TOKEN}" -H 'Content-Type: application/json' --data '{"action":"REFRESH","reason":"github_scheduler_v1.6.1"}')"
           if [ "$quick_code" = "409" ]; then sleep 12; else test "$quick_code" = "200"; fi
 
           curl -sSLo .flowcontrol/official-status.json --fail --connect-timeout 15 --max-time 45 "${BASE_URL}/api/official-source-status"
           official_age="$(node -e "const x=require('./.flowcontrol/official-status.json'); console.log(Number(x.direct?.refresh_age_sec ?? -1))")"
           if [ "$official_age" -lt 0 ] || [ "$official_age" -gt 1800 ]; then
-            curl -sSLo .flowcontrol/official-refresh.json --fail --connect-timeout 15 --max-time 240 -X POST "${BASE_URL}/api/official-source-refresh" -H "Authorization: Bearer ${FLOWCONTROL_GATEWAY_TOKEN}" -H 'Content-Type: application/json' --data '{"include_search":false,"reason":"github_scheduler_v1.6.0_direct"}'
+            curl -sSLo .flowcontrol/official-refresh.json --fail --connect-timeout 15 --max-time 240 -X POST "${BASE_URL}/api/official-source-refresh" -H "Authorization: Bearer ${FLOWCONTROL_GATEWAY_TOKEN}" -H 'Content-Type: application/json' --data '{"include_search":false,"reason":"github_scheduler_v1.6.1_direct"}'
           fi
 
           curl -sSLo .flowcontrol/macro-refresh.json --fail --connect-timeout 15 --max-time 240 "${BASE_URL}/api/macro-event-refresh"
@@ -64,7 +64,7 @@ jobs:
           curl -sSLo .flowcontrol/opportunity.json --fail --connect-timeout 15 --max-time 45 "${BASE_URL}/api/opportunity-queue?action=STATUS"
 
           if [ "${PERFORM_OPENAI_LIVE_CHECK}" = "true" ]; then
-            curl -sSLo .flowcontrol/openai-live.json --fail --connect-timeout 15 --max-time 90 -X POST "${BASE_URL}/api/omni-openai-live-check" -H "Authorization: Bearer ${FLOWCONTROL_GATEWAY_TOKEN}" -H 'Content-Type: application/json' --data '{"action":"LIVE_CHECK","decision_id":"scheduler-v1.6.0-live-check"}'
+            curl -sSLo .flowcontrol/openai-live.json --fail --connect-timeout 15 --max-time 90 -X POST "${BASE_URL}/api/omni-openai-live-check" -H "Authorization: Bearer ${FLOWCONTROL_GATEWAY_TOKEN}" -H 'Content-Type: application/json' --data '{"action":"LIVE_CHECK","decision_id":"scheduler-v1.6.1-live-check"}'
           else
             printf '%s\n' '{"skipped":true}' > .flowcontrol/openai-live.json
           fi
