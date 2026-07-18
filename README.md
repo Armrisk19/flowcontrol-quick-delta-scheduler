@@ -1,23 +1,12 @@
-# FLOWCONTROL Public Quick Delta Scheduler v1.4.3
+# FLOWCONTROL Full-Capacity Intelligence Scheduler v1.6.0
 
-This public GitHub Actions repository refreshes the FLOWCONTROL Gateway Quick Delta every five minutes and verifies the synchronized v8.6.3 / v24.6.3 release.
+Every five minutes this public workflow refreshes Quick Delta, refreshes the full opportunity queue when due, refreshes direct official sources when aging, runs the quota-aware macro refresh, and verifies Gateway v9.0.0 / Strategy v25.0.0.
 
-## Repository secrets
+Repository secrets:
 
-Create these GitHub Actions secrets:
+- `FLOWCONTROL_GATEWAY_URL`
+- `FLOWCONTROL_GATEWAY_TOKEN`
 
-- `FLOWCONTROL_GATEWAY_URL` — the production Vercel base URL, such as `https://example.vercel.app`
-- `FLOWCONTROL_GATEWAY_TOKEN` — the same bearer token configured for the Gateway refresh route
+The token must match `OMNI_COGNITIVE_GATEWAY_TOKEN`.
 
-## Operation
-
-The workflow:
-
-1. Calls `POST /api/quick-delta-refresh`.
-2. Reads `/api/health`, `/api/release-manifest`, `/api/readiness`, and Quick Delta status.
-3. Confirms Gateway `8.6.3`, strategy contract `24.6.3`, 20 exact markets, fingerprint `f18daa19f9ed41c06720349b`, and Quick Delta age of 300 seconds or less.
-4. Accepts `READY` and core-synchronized `DEGRADED` readiness states so optional intelligence availability remains visible while the five-minute refresh continues.
-
-Run **FLOWCONTROL Five-Minute Quick Delta v1.4.3** manually after deployment. A successful run prints `FLOWCONTROL scheduler verification PASS`.
-
-This repository contains public scheduling logic only. Account data, wallet keys, exchange keys, positions, and orders remain outside this repository.
+Run the workflow manually after deployment and enable the real OpenAI acceptance input once. A successful run prints `FLOWCONTROL scheduler verification PASS`.

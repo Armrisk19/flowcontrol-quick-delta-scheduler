@@ -1,7 +1,7 @@
 {
-  "scheduler_version": "1.4.3",
-  "gateway_version": "8.6.3",
-  "strategy_contract_version": "24.6.3",
+  "scheduler_version": "1.6.0",
+  "gateway_version": "9.0.0",
+  "strategy_contract_version": "25.0.0",
   "universe_fingerprint": "f18daa19f9ed41c06720349b",
   "declared_markets": [
     "BTC-PERP",
@@ -25,5 +25,9 @@
     "TSLA-PERP",
     "GOOGL-PERP"
   ],
-  "quick_delta_max_age_sec": 300
+  "declared_tool_probe_count": 16,
+  "declared_feed_identifier_count": 24,
+  "quick_delta_max_age_sec": 300,
+  "opportunity_queue_max_age_sec": 900,
+  "official_source_max_age_sec": 3600
 }
