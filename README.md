@@ -1,18 +1,22 @@
-# FLOWCONTROL Exact Scoring Scheduler v1.6.2
+# FLOWCONTROL Exact Scoring Scheduler v1.6.3
 
-Every five minutes this public workflow refreshes Quick Delta, refreshes the full opportunity queue when due, refreshes direct official sources when aging, runs the quota-aware macro refresh, and verifies Gateway v9.1.0 / Strategy v25.0.3.
+This release hardens Gateway communication against temporary Vercel or upstream HTTP 502 responses.
 
-This release aligns scheduler verification with the Gateway health contract:
+Each required Gateway request now:
 
-```text
-feed_auth_mode: PUBLIC_NUMERIC_MARKET_DATA_ONLY
-```
+- names the endpoint in the Actions log;
+- attempts the request up to four times;
+- waits progressively between attempts;
+- prints the HTTP status and response body on retry;
+- fails only after all attempts are exhausted.
 
-Repository secrets:
+The macro refresh request is advisory. A temporary refresh failure is deferred while the scheduler validates the cached macro status. Required health, release, readiness, probe, Quick Delta, opportunity queue, official-source, and macro-status checks remain strict.
 
-- `FLOWCONTROL_GATEWAY_URL`
-- `FLOWCONTROL_GATEWAY_TOKEN`
+Expected release contract:
 
-The token matches `OMNI_COGNITIVE_GATEWAY_TOKEN`.
-
-Run the workflow manually after deployment and enable the real OpenAI acceptance input once. A successful run prints `FLOWCONTROL scheduler verification PASS`.
+- Gateway `9.1.0`
+- Strategy `25.0.3`
+- feed mode `PUBLIC_NUMERIC_MARKET_DATA_ONLY`
+- 20 markets
+- 16 tool declarations
+- 24 feed identifiers
