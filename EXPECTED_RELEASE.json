@@ -1,0 +1,29 @@
+{
+  "scheduler_version": "1.3.0",
+  "gateway_version": "8.5.0",
+  "strategy_contract_version": "24.5.0",
+  "universe_fingerprint": "f18daa19f9ed41c06720349b",
+  "declared_markets": [
+    "BTC-PERP",
+    "ETH-PERP",
+    "SOL-PERP",
+    "HYPE-PERP",
+    "LINK-PERP",
+    "XRP-PERP",
+    "XLM-PERP",
+    "ONDO-PERP",
+    "NVDA-PERP",
+    "CRCL-PERP",
+    "GOLD-PERP",
+    "CL-PERP",
+    "HBAR-PERP",
+    "SUI-PERP",
+    "TAO-PERP",
+    "ALGO-PERP",
+    "ADA-PERP",
+    "META-PERP",
+    "TSLA-PERP",
+    "GOOGL-PERP"
+  ],
+  "quick_delta_max_age_sec": 300
+}

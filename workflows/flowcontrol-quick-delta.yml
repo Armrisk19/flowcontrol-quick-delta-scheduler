@@ -1,0 +1,172 @@
+name: FLOWCONTROL Five-Minute Quick Delta v1.3.0
+
+on:
+  schedule:
+    - cron: "2-57/5 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: flowcontrol-quick-delta-production
+  cancel-in-progress: false
+
+jobs:
+  refresh-and-verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      FLOWCONTROL_GATEWAY_URL: ${{ secrets.FLOWCONTROL_GATEWAY_URL }}
+      FLOWCONTROL_GATEWAY_TOKEN: ${{ secrets.FLOWCONTROL_GATEWAY_TOKEN }}
+    steps:
+      - name: Check out scheduler contract
+        uses: actions/checkout@v4
+
+      - name: Refresh Quick Delta and verify release sync
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          test -n "${FLOWCONTROL_GATEWAY_URL:-}"
+          test -n "${FLOWCONTROL_GATEWAY_TOKEN:-}"
+
+          BASE_URL="${FLOWCONTROL_GATEWAY_URL%/}"
+          mkdir -p .flowcontrol
+
+          refresh_code="$(curl --silent --show-error --location \
+            --connect-timeout 15 --max-time 210 \
+            --retry 2 --retry-delay 3 --retry-all-errors \
+            --output .flowcontrol/refresh.json --write-out '%{http_code}' \
+            --request POST "${BASE_URL}/api/quick-delta-refresh" \
+            --header "Authorization: Bearer ${FLOWCONTROL_GATEWAY_TOKEN}" \
+            --header 'Content-Type: application/json' \
+            --data '{"action":"REFRESH","reason":"github_scheduler_v1.3.0"}')"
+
+          if [ "$refresh_code" = "409" ]; then
+            sleep 12
+          else
+            test "$refresh_code" = "200"
+          fi
+
+          curl --silent --show-error --location --fail \
+            --connect-timeout 15 --max-time 45 \
+            "${BASE_URL}/api/health" > .flowcontrol/health.json
+
+          curl --silent --show-error --location --fail \
+            --connect-timeout 15 --max-time 45 \
+            "${BASE_URL}/api/release-manifest" > .flowcontrol/manifest.json
+
+          curl --silent --show-error --location --fail \
+            --connect-timeout 15 --max-time 45 \
+            "${BASE_URL}/api/readiness" > .flowcontrol/readiness.json
+
+          curl --silent --show-error --location --fail \
+            --connect-timeout 15 --max-time 45 \
+            "${BASE_URL}/api/quick-delta-refresh?action=STATUS" > .flowcontrol/quick.json
+
+          node <<'NODE'
+          const fs = require('node:fs');
+
+          const readJson = (path) => JSON.parse(fs.readFileSync(path, 'utf8'));
+          const expected = readJson('EXPECTED_RELEASE.json');
+          const health = readJson('.flowcontrol/health.json');
+          const manifest = readJson('.flowcontrol/manifest.json');
+          const readiness = readJson('.flowcontrol/readiness.json');
+          const quick = readJson('.flowcontrol/quick.json');
+
+          const fail = (message, details = {}) => {
+            console.error(`FLOWCONTROL scheduler verification FAILED: ${message}`);
+            if (Object.keys(details).length) console.error(JSON.stringify(details, null, 2));
+            process.exit(1);
+          };
+          const equalArray = (a, b) => Array.isArray(a) && a.length === b.length && a.every((v, i) => v === b[i]);
+
+          if (health.ok !== true || health.status !== 'ALIVE') {
+            fail('Gateway health is not ALIVE', {status: health.status, ok: health.ok});
+          }
+          if (health.gateway_version !== expected.gateway_version) {
+            fail('Gateway version mismatch', {expected: expected.gateway_version, actual: health.gateway_version});
+          }
+          if (health.strategy_contract_version !== expected.strategy_contract_version) {
+            fail('Strategy contract mismatch', {expected: expected.strategy_contract_version, actual: health.strategy_contract_version});
+          }
+          if (Number(health.declared_market_count) !== expected.declared_markets.length) {
+            fail('Declared market count mismatch', {expected: expected.declared_markets.length, actual: health.declared_market_count});
+          }
+          if (health.universe_fingerprint !== expected.universe_fingerprint) {
+            fail('Universe fingerprint mismatch', {expected: expected.universe_fingerprint, actual: health.universe_fingerprint});
+          }
+
+          if (manifest.gateway_version !== expected.gateway_version ||
+              manifest.strategy_contract_version !== expected.strategy_contract_version ||
+              manifest.universe_fingerprint !== expected.universe_fingerprint) {
+            fail('Release manifest mismatch', {
+              gateway_version: manifest.gateway_version,
+              strategy_contract_version: manifest.strategy_contract_version,
+              universe_fingerprint: manifest.universe_fingerprint
+            });
+          }
+          if (!equalArray(manifest.declared_markets, expected.declared_markets)) {
+            fail('Release manifest market list mismatch', {
+              expected: expected.declared_markets,
+              actual: manifest.declared_markets
+            });
+          }
+
+          if (readiness.internal_contract_sync !== true) {
+            fail('Internal release contract is not synchronized', {readiness});
+          }
+          if (Array.isArray(readiness.critical_blockers) && readiness.critical_blockers.length > 0) {
+            fail('Critical readiness blocker present', {critical_blockers: readiness.critical_blockers});
+          }
+          if (!['READY', 'DEGRADED'].includes(readiness.status)) {
+            fail('Readiness state is outside the operational set', {status: readiness.status});
+          }
+          if (readiness.universe_fingerprint !== expected.universe_fingerprint ||
+              Number(readiness.declared_market_count) !== expected.declared_markets.length) {
+            fail('Readiness universe mismatch', {
+              fingerprint: readiness.universe_fingerprint,
+              market_count: readiness.declared_market_count
+            });
+          }
+
+          const signalMarkets = Array.isArray(quick.signals) ? quick.signals.map(x => x.market) : [];
+          const missing = expected.declared_markets.filter(x => !signalMarkets.includes(x));
+          const unexpected = signalMarkets.filter(x => !expected.declared_markets.includes(x));
+          if (quick.ok !== true || quick.version !== expected.gateway_version) {
+            fail('Quick Delta result is unavailable or versioned incorrectly', {ok: quick.ok, version: quick.version});
+          }
+          if (Number(quick.market_count) !== expected.declared_markets.length || missing.length || unexpected.length) {
+            fail('Quick Delta market coverage mismatch', {
+              expected_count: expected.declared_markets.length,
+              actual_count: quick.market_count,
+              missing,
+              unexpected
+            });
+          }
+          if (!Number.isFinite(Number(quick.age_sec)) || Number(quick.age_sec) < 0 || Number(quick.age_sec) > expected.quick_delta_max_age_sec) {
+            fail('Quick Delta freshness exceeds the five-minute contract', {
+              age_sec: quick.age_sec,
+              maximum_age_sec: expected.quick_delta_max_age_sec
+            });
+          }
+          if (readiness.quick_delta?.ok !== true ||
+              Number(readiness.quick_delta?.market_count) !== expected.declared_markets.length ||
+              Number(readiness.quick_delta?.age_sec) > expected.quick_delta_max_age_sec) {
+            fail('Readiness Quick Delta summary mismatch', {quick_delta: readiness.quick_delta});
+          }
+
+          console.log(JSON.stringify({
+            result: 'FLOWCONTROL scheduler verification PASS',
+            scheduler_version: expected.scheduler_version,
+            gateway_version: health.gateway_version,
+            strategy_contract_version: health.strategy_contract_version,
+            readiness_status: readiness.status,
+            degraded_components: readiness.degraded_components || [],
+            universe_fingerprint: health.universe_fingerprint,
+            market_count: quick.market_count,
+            quick_delta_age_sec: quick.age_sec,
+            actionable_count: quick.actionable_count
+          }, null, 2));
+          NODE
