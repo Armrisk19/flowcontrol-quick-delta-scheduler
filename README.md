@@ -1,22 +1,29 @@
-# FLOWCONTROL Exact Scoring Scheduler v1.6.3
+# FLOWCONTROL Exact Scoring Scheduler v1.6.4
 
-This release hardens Gateway communication against temporary Vercel or upstream HTTP 502 responses.
+This release uses a new workflow filename and a new visible Actions title so the current scheduler cannot be confused with an older workflow.
 
-Each required Gateway request now:
+Upload these files:
 
-- names the endpoint in the Actions log;
-- attempts the request up to four times;
-- waits progressively between attempts;
-- prints the HTTP status and response body on retry;
-- fails only after all attempts are exhausted.
+- `.github/workflows/flowcontrol-scoring-ledger-v1.6.4.yml`
+- `EXPECTED_RELEASE.json`
+- `README.md`
 
-The macro refresh request is advisory. A temporary refresh failure is deferred while the scheduler validates the cached macro status. Required health, release, readiness, probe, Quick Delta, opportunity queue, official-source, and macro-status checks remain strict.
+Remove the older workflow file:
 
-Expected release contract:
+- `.github/workflows/flowcontrol-quick-delta.yml`
 
-- Gateway `9.1.0`
-- Strategy `25.0.3`
-- feed mode `PUBLIC_NUMERIC_MARKET_DATA_ONLY`
-- 20 markets
-- 16 tool declarations
-- 24 feed identifiers
+Run only:
+
+- `FLOWCONTROL Exact Scoring Scheduler v1.6.4`
+
+Expected feed contract:
+
+```text
+PUBLIC_NUMERIC_MARKET_DATA_ONLY
+```
+
+A successful run prints:
+
+```text
+FLOWCONTROL scheduler verification PASS
+```
