@@ -1,29 +1,19 @@
-# FLOWCONTROL Exact Scoring Scheduler v1.6.4
+# FLOWCONTROL Autonomous Desk Scheduler v2.0.1
 
-This release uses a new workflow filename and a new visible Actions title so the current scheduler cannot be confused with an older workflow.
+Runs every five minutes and verifies the synchronized production release:
 
-Upload these files:
+- Gateway 10.0.1
+- Strategy 26.0.1
+- 20-market universe
+- 16 tool declarations
+- 24 feed identifiers
+- position capacity Quick 7 / Medium 9 / Longer-Term 4 / Global 20
+- feed mode PUBLIC_NUMERIC_MARKET_DATA_ONLY
 
-- `.github/workflows/flowcontrol-scoring-ledger-v1.6.4.yml`
+The workflow refreshes Quick Delta, the opportunity queue, official sources, and macro status with four-attempt request handling. It verifies health, release manifest, readiness, probe matrix, source status, and optional OpenAI live acceptance.
+
+Upload:
+
+- `.github/workflows/flowcontrol-autonomous-desk-v2.0.1.yml`
 - `EXPECTED_RELEASE.json`
 - `README.md`
-
-Remove the older workflow file:
-
-- `.github/workflows/flowcontrol-quick-delta.yml`
-
-Run only:
-
-- `FLOWCONTROL Exact Scoring Scheduler v1.6.4`
-
-Expected feed contract:
-
-```text
-PUBLIC_NUMERIC_MARKET_DATA_ONLY
-```
-
-A successful run prints:
-
-```text
-FLOWCONTROL scheduler verification PASS
-```
