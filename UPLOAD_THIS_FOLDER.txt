@@ -1,5 +1,0 @@
-Upload the CONTENTS to the existing public Quick Delta scheduler repository.
-
-Replace matching files.
-Commit:
-Harden Quick scheduler v1.2
