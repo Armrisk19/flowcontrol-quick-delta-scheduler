@@ -1,7 +1,7 @@
 {
-  "scheduler_version": "2.0.1",
-  "gateway_version": "10.0.1",
-  "strategy_contract_version": "26.0.1",
+  "scheduler_version": "2.0.2",
+  "gateway_version": "10.0.2",
+  "strategy_contract_version": "26.0.2",
   "universe_fingerprint": "f18daa19f9ed41c06720349b",
   "declared_markets": [
     "BTC-PERP",
@@ -37,5 +37,24 @@
     "LONGER_TERM": 4,
     "GLOBAL": 20,
     "DISTINCT_MARKET_SLOTS": true
-  }
+  },
+  "adaptive_bracket_contract": {
+    "version": "adaptive-bracket-v2.0.2",
+    "lifecycle_minimum_notional_usd": 11.5,
+    "actual_order_price_validation": true,
+    "post_rounding_validation": true,
+    "invalid_split_rewrite": true,
+    "exact_quantity_coverage": true,
+    "next_candidate_continuation_required": true,
+    "post_fill_rebuild_required": true
+  },
+  "adaptive_bracket_self_test_passed_count": 4,
+  "required_capabilities": [
+    "ACTUAL_PRICE_LIFECYCLE_NOTIONAL_ENFORCEMENT",
+    "ADAPTIVE_SINGLE_TARGET_REWRITE",
+    "POST_ROUNDING_BRACKET_REVALIDATION",
+    "EXACT_POST_FILL_PROTECTION_AUDIT",
+    "DYNAMIC_TAKE_PROFIT_ACTION_PACKETS",
+    "NEXT_CANDIDATE_CONTINUATION"
+  ]
 }
