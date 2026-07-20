@@ -1,7 +1,7 @@
 {
-  "scheduler_version": "2.2.0",
-  "gateway_version": "10.2.0",
-  "strategy_contract_version": "26.2.0",
+  "scheduler_version": "2.3.0",
+  "gateway_version": "10.3.0",
+  "strategy_contract_version": "26.3.0",
   "active_universe_contract_version": "active-universe-v2.0.0",
   "market_mastery_contract_version": "market-mastery-v2.0.0",
   "eligible_markets": [
@@ -69,6 +69,10 @@
     "SMALL_STARTER_ENTRY",
     "BOUNDED_MARKETABLE_LIMIT_ENTRY",
     "EXACT_REMAINDER_PROTECTION_REBUILD",
-    "NEXT_CANDIDATE_CONTINUATION"
+    "NEXT_CANDIDATE_CONTINUATION",
+    "NATIVE_STAGE_ONE_PROFIT_LOCK",
+    "FULL_POSITION_STAGE_ONE_FALLBACK",
+    "DIRECTIONAL_DOMINANCE_GATE",
+    "MISSED_PROFIT_GIVEBACK_EXIT"
   ]
 }
