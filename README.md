@@ -1,5 +1,7 @@
-# FLOWCONTROL Autonomous Desk Scheduler v2.0.3
+# FLOWCONTROL Top-20 Market Mastery Scheduler v2.2.0
 
-Verifies Gateway 10.0.3 and Strategy 26.0.3, twenty-market G20 capacity, adaptive-bracket-v2.0.3, persistent profit-stage-v1.0.0, lifecycle-telemetry-v1.0.0, deterministic sizing/profit-stage tests, source freshness, and optional live cognitive acceptance.
+Refreshes the live quality-selected top twenty from a twenty-eight-market candidate pool, refreshes opportunity and macro data, creates the exact 120-plan board for the selected universe, and verifies Gateway v10.2.0 / Strategy v26.2.0 contracts.
 
-Upload the three packaged paths exactly. Run once with the live check disabled, then once enabled. The scheduler verifies deployed contracts and deterministic behavior; Engine and exchange receipts remain the authority for actual submissions and fills.
+The first post-deployment manual run should use `force_universe_refresh: true`, `force_board_refresh: true`, and `perform_openai_live_check: false`. Run once more with the live check enabled after the first pass.
+
+The public repository needs repository activity at least once every 60 days so GitHub does not automatically disable scheduled workflows.
