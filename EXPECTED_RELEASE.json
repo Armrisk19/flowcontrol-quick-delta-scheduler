@@ -1,7 +1,7 @@
 {
-  "scheduler_version": "2.0.2",
-  "gateway_version": "10.0.2",
-  "strategy_contract_version": "26.0.2",
+  "scheduler_version": "2.0.3",
+  "gateway_version": "10.0.3",
+  "strategy_contract_version": "26.0.3",
   "universe_fingerprint": "f18daa19f9ed41c06720349b",
   "declared_markets": [
     "BTC-PERP",
@@ -39,22 +39,50 @@
     "DISTINCT_MARKET_SLOTS": true
   },
   "adaptive_bracket_contract": {
-    "version": "adaptive-bracket-v2.0.2",
+    "version": "adaptive-bracket-v2.0.3",
     "lifecycle_minimum_notional_usd": 11.5,
     "actual_order_price_validation": true,
     "post_rounding_validation": true,
     "invalid_split_rewrite": true,
     "exact_quantity_coverage": true,
     "next_candidate_continuation_required": true,
-    "post_fill_rebuild_required": true
+    "post_fill_rebuild_required": true,
+    "prearmed_half_r_profit_capture": true
   },
-  "adaptive_bracket_self_test_passed_count": 4,
+  "adaptive_bracket_self_test_passed_count": 6,
   "required_capabilities": [
     "ACTUAL_PRICE_LIFECYCLE_NOTIONAL_ENFORCEMENT",
     "ADAPTIVE_SINGLE_TARGET_REWRITE",
     "POST_ROUNDING_BRACKET_REVALIDATION",
+    "PERSISTENT_MFE_PROFIT_STAGE_STATE",
+    "PREARMED_HALF_R_PROFIT_CAPTURE",
+    "STAGE_ACKNOWLEDGEMENT_GATING",
+    "EXACT_REMAINDER_PROTECTION_REBUILD",
+    "FIXED_SIZE_CHILD_ORDER_RESIZE_GUARD",
+    "MARK_PRICE_TRIGGER_AWARENESS",
+    "LIFECYCLE_CORRELATION_TELEMETRY",
     "EXACT_POST_FILL_PROTECTION_AUDIT",
     "DYNAMIC_TAKE_PROFIT_ACTION_PACKETS",
     "NEXT_CANDIDATE_CONTINUATION"
-  ]
+  ],
+  "profit_stage_contract": {
+    "version": "profit-stage-v1.0.0",
+    "thresholds_r": {
+      "WATCH": 0.35,
+      "STAGE_1": 0.5,
+      "STAGE_2": 0.75,
+      "STAGE_3": 1,
+      "STAGE_4": 1.5,
+      "STAGE_5": 2
+    },
+    "persistent_highest_stage": true,
+    "stage_acknowledgement_gating": true,
+    "exact_remainder_rebuild": true
+  },
+  "profit_stage_self_test_passed_count": 3,
+  "lifecycle_telemetry_contract": {
+    "version": "lifecycle-telemetry-v1.0.0",
+    "authenticated_read_write": true
+  },
+  "lifecycle_telemetry_self_test_passed_count": 1
 }

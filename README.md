@@ -1,24 +1,5 @@
-# FLOWCONTROL Autonomous Desk Scheduler v2.0.2
+# FLOWCONTROL Autonomous Desk Scheduler v2.0.3
 
-Runs every five minutes and verifies the synchronized production release:
+Verifies Gateway 10.0.3 and Strategy 26.0.3, twenty-market G20 capacity, adaptive-bracket-v2.0.3, persistent profit-stage-v1.0.0, lifecycle-telemetry-v1.0.0, deterministic sizing/profit-stage tests, source freshness, and optional live cognitive acceptance.
 
-- Gateway 10.0.2
-- Strategy 26.0.2
-- 20-market universe
-- 16 tool declarations
-- 24 feed identifiers
-- Quick 7 / Medium 9 / Longer-Term 4 / Global 20
-- $11.50 actual-price lifecycle minimum contract
-- adaptive invalid-split rewrite contract
-- four deterministic adaptive-bracket self-tests
-- exact post-fill protection audit capability
-- dynamic take-profit action packet capability
-- next-candidate continuation capability
-
-The workflow refreshes Quick Delta, opportunity queue, official sources, and macro status with four-attempt handling. It verifies health, release manifest, readiness, probe matrix, source freshness, synchronized adaptive-bracket contracts, required capability flags, deterministic sizing vectors, and optional OpenAI live acceptance.
-
-Upload:
-
-- `.github/workflows/flowcontrol-autonomous-desk-v2.0.2.yml`
-- `EXPECTED_RELEASE.json`
-- `README.md`
+Upload the three packaged paths exactly. Run once with the live check disabled, then once enabled. The scheduler verifies deployed contracts and deterministic behavior; Engine and exchange receipts remain the authority for actual submissions and fills.
