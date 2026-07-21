@@ -1,16 +1,33 @@
 {
-  "scheduler_version": "2.4.2",
-  "gateway_version": "10.4.2",
-  "strategy_contract_version": "26.4.2",
+  "scheduler_version": "2.5.0",
+  "gateway_version": "10.5.0",
+  "strategy_contract_version": "26.5.0",
   "autonomous_board_max_age_sec": 420,
   "declared_markets": [
-    "BTC-PERP", "ETH-PERP", "SOL-PERP", "HYPE-PERP", "LINK-PERP",
-    "XRP-PERP", "XLM-PERP", "ONDO-PERP", "NVDA-PERP", "CRCL-PERP",
-    "GOLD-PERP", "CL-PERP", "HBAR-PERP", "SUI-PERP", "TAO-PERP",
-    "ALGO-PERP", "ADA-PERP", "META-PERP", "TSLA-PERP", "GOOGL-PERP"
+    "BTC-PERP",
+    "ETH-PERP",
+    "SOL-PERP",
+    "HYPE-PERP",
+    "LINK-PERP",
+    "XRP-PERP",
+    "XLM-PERP",
+    "ONDO-PERP",
+    "NVDA-PERP",
+    "CRCL-PERP",
+    "GOLD-PERP",
+    "CL-PERP",
+    "HBAR-PERP",
+    "SUI-PERP",
+    "TAO-PERP",
+    "ALGO-PERP",
+    "ADA-PERP",
+    "META-PERP",
+    "TSLA-PERP",
+    "GOOGL-PERP"
   ],
   "required_capabilities": [
-    "TRUE_MULTI_TIMEFRAME_MATRIX",
+    "DIRECTIONAL_OPPORTUNITY_MESH_60",
+    "RESILIENT_DERIVED_MULTI_TIMEFRAME_MATRIX",
     "CROSS_MARKET_BREADTH_REGIME",
     "ONE_DIRECTION_PER_MARKET_HORIZON",
     "SCORE_AWARE_MICRO_SCOUTS",
@@ -19,5 +36,6 @@
     "NATIVE_STAGE1_PROFIT_PROTECTION",
     "EXACT_REMAINDER_PROTECTION_REBUILD",
     "NEXT_CANDIDATE_CONTINUATION"
-  ]
+  ],
+  "expected_opportunity_mesh_cells": 60
 }
