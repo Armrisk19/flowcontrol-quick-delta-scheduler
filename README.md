@@ -1,3 +1,3 @@
-# FLOWCONTROL Scheduler v5.0.0 — Concurrent Green-Harvest Verification
+# FLOWCONTROL Scheduler v6.0.0 — Adaptive Autonomous Verification
 
-Refreshes advisory Gateway context every five minutes and verifies Gateway v13.0.0, Strategy v34.0.0, Scheduler v5.0.0, exact universe, eighteen-slot concurrency, deterministic Green-Harvest tests, release synchronization, storage, and the optional 60-cell attention mesh. Engine remains the sole execution authority; the scheduler cannot place or close trades.
+Refreshes advisory Gateway context every five minutes and verifies Gateway v14.0.0, Strategy v35.0.0, Scheduler v6.0.0, exact twenty-market universe, sixty-cell opportunity mesh, eighteen-slot protected concurrency, adaptive multi-horizon profit tests, release synchronization, storage, and optional context freshness. Engine remains the execution authority; the scheduler refreshes intelligence and verifies readiness.
