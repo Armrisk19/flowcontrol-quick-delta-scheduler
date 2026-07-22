@@ -1,11 +1,7 @@
-# FLOWCONTROL Opportunity Capture Scheduler v2.5.0
+# FLOWCONTROL Scheduler v3.0.0 — Full-Stack Contract Verification
 
-This public GitHub Actions scheduler refreshes market-only Gateway intelligence every five minutes and verifies the synchronized release contract.
+This GitHub Actions workflow refreshes public Gateway market intelligence every five minutes and verifies Gateway v11.0.0, Strategy contract v32.0.0, and the after-cost Net-Green Controller. Engine remains the sole execution authority.
 
-Required repository secrets:
-- `OMNI_COGNITIVE_GATEWAY_TOKEN`
-- `FLOWCONTROL_GATEWAY_BASE_URL` (optional when using the default FLOWCONTROL Gateway URL)
+The scheduler verifies the 60-cell opportunity mesh, release versions, universe integrity, deterministic controller tests, storage readiness, optional context degradation, and required capability declarations. It never places, closes, or modifies trades.
 
-The five-minute cycle refreshes Quick Delta, the opportunity queue, and the 60-cell Directional Opportunity Mesh. Official and macro source refreshes run hourly to control external usage and latency. The scheduler verifies multi-timeframe coverage, breadth classification, one-direction selection, lifecycle self-tests, release synchronization, and an optional non-blocking live OpenAI acceptance diagnostic. Scheduled core refreshes continue when that optional diagnostic is unavailable.
-
-The scheduler does not place trades. Engine remains the execution authority.
+Official-source research refreshes every six hours and macro refreshes hourly to control cost and staleness. Manual dispatch can force either path.
