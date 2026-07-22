@@ -1,3 +1,5 @@
-# FLOWCONTROL Scheduler v6.0.0 — Adaptive Autonomous Verification
+# FLOWCONTROL Scheduler v7.0.0 — Persistent Opportunity Graph Verification
 
-Refreshes advisory Gateway context every five minutes and verifies Gateway v14.0.0, Strategy v35.0.0, Scheduler v6.0.0, exact twenty-market universe, sixty-cell opportunity mesh, eighteen-slot protected concurrency, adaptive multi-horizon profit tests, release synchronization, storage, and optional context freshness. Engine remains the execution authority; the scheduler refreshes intelligence and verifies readiness.
+Refreshes deterministic public context and the persistent 120-hypothesis opportunity graph every five minutes. Verifies Gateway v15.0.0, Strategy v36.0.0, Scheduler v7.0.0, 20 markets, 60 coverage cells, 120 directional hypotheses, separate completeness, 18 protected slots, portfolio optimization, and protection tests.
+
+Upload the workflow to `.github/workflows/`. Keep `EXPECTED_RELEASE.json` at repository root. Rename this file `SCHEDULER_V7_README.md` when adding it to the Gateway repository so the Gateway README remains intact.
