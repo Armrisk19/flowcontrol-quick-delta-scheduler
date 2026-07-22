@@ -1,8 +1,8 @@
 {
-  "scheduler_version": "3.0.0",
-  "gateway_version": "11.0.0",
-  "strategy_contract_version": "32.0.0",
-  "autonomous_board_max_age_sec": 420,
+  "scheduler_version": "4.0.0",
+  "gateway_version": "12.0.0",
+  "strategy_contract_version": "33.0.0",
+  "autonomous_board_max_age_sec": 600,
   "declared_markets": [
     "BTC-PERP",
     "ETH-PERP",
@@ -31,12 +31,14 @@
     "CROSS_MARKET_BREADTH_REGIME",
     "ONE_DIRECTION_PER_MARKET_HORIZON",
     "LONG_PRIORITY_SHORT_MODE_CONTROL",
-    "NET_GREEN_AFTER_COST_CONTROLLER",
-    "FULL_POSITION_TP_SL_CONFIRMED_MODEL",
+    "MICRO_HARVEST_AFTER_COST_CONTROLLER",
+    "SMALL_NAV_ONE_ENTRY_PER_REVIEW",
+    "NO_CONTINUATION_HOLD_EXCEPTION",
+    "TARGET_MATCHED_QUANTITY_SOLVER",
+    "FULL_POSITION_MICRO_HARVEST_TP_SL",
     "CONFIRMATION_AWARE_PROTECTION_REPLACEMENT",
-    "GREEN_TO_LOSS_ATTRIBUTION",
-    "REJECTION_SPECIFIC_REPAIR",
-    "NEXT_CANDIDATE_CONTINUATION"
+    "GREEN_TO_LOSS_AND_COST_ATTRIBUTION",
+    "REJECTION_SPECIFIC_REPAIR"
   ],
   "expected_opportunity_mesh_cells": 60
 }

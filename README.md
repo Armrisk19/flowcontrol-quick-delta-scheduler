@@ -1,7 +1,3 @@
-# FLOWCONTROL Scheduler v3.0.0 — Full-Stack Contract Verification
+# FLOWCONTROL Scheduler v4.0.0 — Micro-Harvest Full-Stack Verification
 
-This GitHub Actions workflow refreshes public Gateway market intelligence every five minutes and verifies Gateway v11.0.0, Strategy contract v32.0.0, and the after-cost Net-Green Controller. Engine remains the sole execution authority.
-
-The scheduler verifies the 60-cell opportunity mesh, release versions, universe integrity, deterministic controller tests, storage readiness, optional context degradation, and required capability declarations. It never places, closes, or modifies trades.
-
-Official-source research refreshes every six hours and macro refreshes hourly to control cost and staleness. Manual dispatch can force either path.
+Refreshes advisory Gateway context every five minutes and verifies Gateway v12.0.0, Strategy v33.0.0, Scheduler v4.0.0, exact universe, deterministic Micro-Harvest tests, release synchronization, storage, and the optional 60-cell attention mesh. Engine remains the sole execution authority. Advisory mesh or Gateway candle degradation never blocks Engine-native trading when critical contracts and deterministic controller tests pass.
