@@ -1,0 +1,101 @@
+name: FLOWCONTROL Persistent Opportunity Graph Scheduler v7.0.0
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+    inputs:
+      force_graph_refresh:
+        description: Force persistent opportunity graph refresh
+        required: false
+        default: true
+        type: boolean
+      force_slow_source_refresh:
+        description: Refresh official and macro sources now
+        required: false
+        default: false
+        type: boolean
+      perform_optional_model_check:
+        description: Run optional authenticated model diagnostic
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: flowcontrol-persistent-opportunity-graph-v7
+  cancel-in-progress: false
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  GATEWAY_BASE_URL: ${{ secrets.FLOWCONTROL_GATEWAY_BASE_URL || 'https://flowcontrol-omni-x-gateway-a29-c84d.vercel.app' }}
+  GATEWAY_TOKEN: ${{ secrets.OMNI_COGNITIVE_GATEWAY_TOKEN }}
+
+jobs:
+  refresh-and-verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout release contract
+        uses: actions/checkout@v6
+      - name: Refresh deterministic state and verify contracts
+        shell: bash
+        env:
+          INPUT_FORCE_GRAPH: ${{ github.event.inputs.force_graph_refresh }}
+          INPUT_SLOW: ${{ github.event.inputs.force_slow_source_refresh }}
+          INPUT_MODEL: ${{ github.event.inputs.perform_optional_model_check }}
+        run: |
+          set -euo pipefail
+          test -n "${GATEWAY_TOKEN:-}" || { echo "Missing OMNI_COGNITIVE_GATEWAY_TOKEN"; exit 1; }
+          BASE="${GATEWAY_BASE_URL%/}"
+          tmp="$(mktemp -d)"; trap 'rm -rf "$tmp"' EXIT
+          request(){
+            local label="$1" method="$2" url="$3" body="$4" out="$5" code=""
+            for attempt in 1 2 3; do
+              if [[ "$method" == "POST" ]]; then
+                code=$(curl -sS --max-time 150 -o "$out" -w '%{http_code}' -X POST -H "Authorization: Bearer ${GATEWAY_TOKEN}" -H 'Content-Type: application/json' --data "$body" "$url" || true)
+              else
+                code=$(curl -sS --max-time 90 -o "$out" -w '%{http_code}' -H "Authorization: Bearer ${GATEWAY_TOKEN}" "$url?cb=$(date +%s%N)" || true)
+              fi
+              [[ "$code" =~ ^2 ]] && { echo "PASS $label HTTP $code"; return 0; }
+              echo "RETRY $label HTTP $code"; cat "$out" || true; sleep $((attempt*4))
+            done
+            echo "FAILED $label"; return 1
+          }
+          minute=$(date -u +%M); hour=$(date -u +%H)
+          force_graph="${INPUT_FORCE_GRAPH:-true}"; force_slow="${INPUT_SLOW:-false}"; model_check="${INPUT_MODEL:-false}"
+          if [[ "$minute" == "00" || "$force_slow" == "true" ]]; then request macro POST "$BASE/api/macro-event-refresh" '{"reason":"scheduler_v7"}' "$tmp/macro.json" || true; fi
+          if [[ ( "$minute" == "00" && $((10#$hour % 6)) -eq 0 ) || "$force_slow" == "true" ]]; then request official POST "$BASE/api/official-source-refresh" '{"reason":"scheduler_v7"}' "$tmp/official.json" || true; fi
+          request queue POST "$BASE/api/opportunity-queue" '{"refresh":true,"reason":"scheduler_v7"}' "$tmp/queue-refresh.json"
+          request quick POST "$BASE/api/quick-delta-refresh" '{"reason":"scheduler_v7"}' "$tmp/quick-refresh.json"
+          request graph POST "$BASE/api/opportunity-graph-refresh" "{\"reason\":\"scheduler_v7\",\"force\":${force_graph}}" "$tmp/graph-refresh.json"
+          request health GET "$BASE/api/health" '' "$tmp/health.json"
+          request manifest GET "$BASE/api/release-manifest" '' "$tmp/manifest.json"
+          request readiness GET "$BASE/api/readiness" '' "$tmp/readiness.json"
+          request graph-status GET "$BASE/api/opportunity-graph-status" '' "$tmp/graph.json"
+          if [[ "$model_check" == "true" ]]; then request model POST "$BASE/api/omni-runtime-diagnostic" '{"mode":"LIVE_ACCEPTANCE","reason":"scheduler_v7"}' "$tmp/model.json" || true; fi
+          node - "$tmp" <<'NODE'
+          const fs=require('fs'),path=require('path'),dir=process.argv[2];
+          const read=n=>JSON.parse(fs.readFileSync(path.join(dir,n),'utf8'));
+          const expected=JSON.parse(fs.readFileSync('EXPECTED_RELEASE.json','utf8'));
+          const health=read('health.json'),manifest=read('manifest.json'),ready=read('readiness.json'),graph=read('graph.json');
+          const fail=(m,d)=>{console.error('FLOWCONTROL VERIFY FAILED:',m);console.error(JSON.stringify(d,null,2));process.exit(1)};
+          if(health.gateway_version!==expected.gateway_version||health.strategy_contract_version!==expected.strategy_contract_version||health.scheduler_contract_version!==expected.scheduler_version)fail('health versions',{health,expected});
+          if(manifest.gateway_version!==expected.gateway_version||manifest.strategy_contract_version!==expected.strategy_contract_version||manifest.scheduler_contract_version!==expected.scheduler_version)fail('manifest versions',{manifest,expected});
+          if(JSON.stringify(manifest.declared_markets)!==JSON.stringify(expected.declared_markets))fail('universe',manifest.declared_markets);
+          if(ready.internal_contract_sync!==true||(ready.critical_blockers||[]).length)fail('readiness',ready);
+          if(Number(manifest.position_capacity?.GLOBAL)!==expected.position_capacity)fail('position capacity',manifest.position_capacity);
+          if(Number(manifest.opportunity_graph_contract?.expected_cell_count)!==expected.expected_cell_count||Number(manifest.opportunity_graph_contract?.expected_plan_count)!==expected.expected_plan_count)fail('graph contract',manifest.opportunity_graph_contract);
+          if(graph.structural_complete!==true||Number(graph.exact_scored_cell_count)!==60||Number(graph.exact_scored_plan_count)!==120)fail('graph structure',graph);
+          if(graph.decision_complete!==true)fail('graph decision completeness',graph);
+          if(Number(graph.opposing_actionable_pair_count||0)!==0)fail('opposing directions',graph);
+          if(Number(graph.age_sec)>expected.opportunity_graph_max_age_sec)fail('graph stale',graph.age_sec);
+          if(graph.evidence_complete!==true)console.warn('FLOWCONTROL graph evidence partial; affected hypotheses remain gated');
+          const missing=(expected.required_capabilities||[]).filter(x=>!(manifest.capabilities||[]).includes(x));
+          if(missing.length)fail('missing capabilities',missing);
+          const tests=health;
+          for(const key of ['opportunity_graph_self_test','opportunity_capture_self_test','portfolio_optimizer_self_test','adaptive_profit_controller_self_test'])if(tests[key]?.all_passed!==true&&tests[key]?.complete!==true)fail(key,tests[key]);
+          console.log(JSON.stringify({status:ready.status,gateway_version:health.gateway_version,strategy_contract_version:health.strategy_contract_version,scheduler_contract_version:health.scheduler_contract_version,internal_contract_sync:ready.internal_contract_sync,critical_blockers:ready.critical_blockers,degraded_components:ready.degraded_components,structural_complete:graph.structural_complete,evidence_complete:graph.evidence_complete,decision_complete:graph.decision_complete,cells:graph.exact_scored_cell_count,hypotheses:graph.exact_scored_plan_count,actionable:graph.actionable_count,age_sec:graph.age_sec},null,2));
+          NODE
