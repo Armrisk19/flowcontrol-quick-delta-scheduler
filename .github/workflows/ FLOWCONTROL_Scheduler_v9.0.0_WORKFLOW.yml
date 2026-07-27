@@ -1,0 +1,101 @@
+name: FLOWCONTROL Resilient High-Velocity Scheduler v9.0.0
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+    - cron: "3,13,23,33,43,53 * * * *"
+    - cron: "7,22,37,52 * * * *"
+    - cron: "17 * * * *"
+    - cron: "47 */6 * * *"
+  workflow_dispatch:
+    inputs:
+      force_full_refresh:
+        description: Refresh Quick, queue, and graph now
+        required: false
+        default: true
+        type: boolean
+      force_slow_sources:
+        description: Refresh macro and official sources now
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: flowcontrol-resilient-high-velocity-v9
+  cancel-in-progress: true
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  GATEWAY_BASE_URL: ${{ secrets.FLOWCONTROL_GATEWAY_BASE_URL || 'https://flowcontrol-omni-x-gateway-a29-c84d.vercel.app' }}
+  GATEWAY_TOKEN: ${{ secrets.OMNI_COGNITIVE_GATEWAY_TOKEN }}
+
+jobs:
+  refresh-and-verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Checkout release contract
+        uses: actions/checkout@v6
+      - name: Refresh resilient advisory state
+        shell: bash
+        env:
+          EVENT_SCHEDULE: ${{ github.event.schedule }}
+          INPUT_FULL: ${{ github.event.inputs.force_full_refresh }}
+          INPUT_SLOW: ${{ github.event.inputs.force_slow_sources }}
+        run: |
+          set -uo pipefail
+          test -n "${GATEWAY_TOKEN:-}" || { echo "Missing OMNI_COGNITIVE_GATEWAY_TOKEN"; exit 1; }
+          BASE="${GATEWAY_BASE_URL%/}"; tmp="$(mktemp -d)"; trap 'rm -rf "$tmp"' EXIT
+          declare -A RESULT
+          request(){
+            local label="$1" method="$2" path="$3" body="$4" required="$5" out="$tmp/$label.json" code=""
+            for attempt in 1 2 3; do
+              if [[ "$method" == POST ]]; then
+                code=$(curl -sS --max-time 100 -o "$out" -w '%{http_code}' -X POST -H "Authorization: Bearer ${GATEWAY_TOKEN}" -H 'Content-Type: application/json' --data "$body" "$BASE$path" || true)
+              else
+                code=$(curl -sS --max-time 45 -o "$out" -w '%{http_code}' -H "Authorization: Bearer ${GATEWAY_TOKEN}" "$BASE$path?cb=$(date +%s%N)" || true)
+              fi
+              if [[ "$code" =~ ^2 ]] && node -e 'JSON.parse(require("fs").readFileSync(process.argv[1],"utf8"))' "$out" 2>/dev/null; then RESULT[$label]=PASS; echo "PASS $label HTTP $code"; return 0; fi
+              echo "RETRY $label HTTP $code attempt $attempt"; head -c 1200 "$out" 2>/dev/null || true; echo; sleep $((attempt*3))
+            done
+            RESULT[$label]=FAIL
+            [[ "$required" == true ]] && return 1
+            echo "ADVISORY FAILURE $label - successful state from other components is preserved"
+            return 0
+          }
+          schedule="${EVENT_SCHEDULE:-manual}"; force_full="${INPUT_FULL:-false}"; force_slow="${INPUT_SLOW:-false}"
+          run_quick=false; run_queue=false; run_graph=false; run_macro=false; run_official=false
+          case "$schedule" in
+            "*/5 * * * *") run_quick=true ;;
+            "3,13,23,33,43,53 * * * *") run_queue=true ;;
+            "7,22,37,52 * * * *") run_graph=true ;;
+            "17 * * * *") run_macro=true ;;
+            "47 */6 * * *") run_official=true ;;
+            manual) run_quick=true; run_queue=true; run_graph=true ;;
+          esac
+          if [[ "$force_full" == true ]]; then run_quick=true; run_queue=true; run_graph=true; fi
+          if [[ "$force_slow" == true ]]; then run_macro=true; run_official=true; fi
+          [[ "$run_quick" == true ]] && request quick POST /api/quick-delta-refresh '{"reason":"scheduler_v9_5m"}' false || true
+          [[ "$run_queue" == true ]] && request queue POST /api/opportunity-queue '{"refresh":true,"reason":"scheduler_v9_10m"}' false || true
+          [[ "$run_graph" == true ]] && request graph POST /api/opportunity-graph-refresh '{"reason":"scheduler_v9_15m","force":false}' false || true
+          [[ "$run_macro" == true ]] && request macro POST /api/macro-event-refresh '{"reason":"scheduler_v9_hourly"}' false || true
+          [[ "$run_official" == true ]] && request official POST /api/official-source-refresh '{"reason":"scheduler_v9_6h"}' false || true
+          request health GET /api/health '' true || exit 1
+          request manifest GET /api/release-manifest '' true || exit 1
+          request readiness GET /api/readiness '' true || exit 1
+          request graph_status GET /api/opportunity-graph-status '' false || true
+          node - "$tmp" <<'NODE'
+          const fs=require('fs'),path=require('path'),dir=process.argv[2];
+          const read=(n,optional=false)=>{try{return JSON.parse(fs.readFileSync(path.join(dir,n),'utf8'))}catch(e){if(optional)return null;throw e}};
+          const expected=JSON.parse(fs.readFileSync('EXPECTED_RELEASE.json','utf8'));
+          const health=read('health.json'),manifest=read('manifest.json'),ready=read('readiness.json'),graph=read('graph_status.json',true);
+          const fail=(m,d)=>{console.error('FLOWCONTROL VERIFY FAILED:',m);console.error(JSON.stringify(d,null,2));process.exit(1)};
+          for(const x of [health,manifest])if(x.gateway_version!==expected.gateway_version||x.strategy_contract_version!==expected.strategy_contract_version||x.scheduler_contract_version!==expected.scheduler_version)fail('version contract',{x,expected});
+          if(ready.internal_contract_sync!==true||(ready.critical_blockers||[]).length)fail('critical readiness',ready);
+          if(JSON.stringify(manifest.declared_markets)!==JSON.stringify(expected.declared_markets))fail('universe mismatch',manifest.declared_markets);
+          if(graph&&Number(graph.age_sec)>expected.opportunity_graph_advisory_age_sec)console.warn('Graph aging; Engine-native fallback remains active',graph.age_sec);
+          console.log(JSON.stringify({status:ready.status,advisories:ready.advisories||[],gateway_version:health.gateway_version,strategy_contract_version:health.strategy_contract_version,scheduler_contract_version:health.scheduler_contract_version,graph_age_sec:graph?.age_sec??null,graph_actionable:graph?.actionable_count??null},null,2));
+          NODE
