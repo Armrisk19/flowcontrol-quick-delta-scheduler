@@ -1,50 +1,30 @@
 {
-  "scheduler_version": "9.0.0",
-  "gateway_version": "17.0.0",
-  "strategy_contract_version": "38.0.0",
-  "horizons": [
-    "QUICK",
-    "MEDIUM",
-    "LONGER_TERM"
-  ],
-  "directions": [
-    "LONG",
-    "SHORT"
-  ],
+  "scheduler_version": "9.1.0",
+  "gateway_version": "17.2.0",
+  "strategy_contract_version": "38.2.0",
+  "live_tool_count": 10,
+  "feed_count": 5,
+  "feed_identifier_count": 20,
+  "horizons": ["QUICK", "MEDIUM", "LONGER_TERM"],
+  "directions": ["LONG", "SHORT"],
   "opportunity_graph_advisory_age_sec": 1800,
   "position_capacity": 18,
-  "daily_completed_trade_objective": {
-    "low": 10,
-    "high": 20
-  },
+  "daily_completed_trade_objective": {"low": 10, "high": 20},
   "declared_markets": [
-    "BTC-PERP",
-    "ETH-PERP",
-    "SOL-PERP",
-    "HYPE-PERP",
-    "LINK-PERP",
-    "XRP-PERP",
-    "XLM-PERP",
-    "ONDO-PERP",
-    "NVDA-PERP",
-    "CRCL-PERP",
-    "GOLD-PERP",
-    "CL-PERP",
-    "HBAR-PERP",
-    "SUI-PERP",
-    "TAO-PERP",
-    "ALGO-PERP",
-    "ADA-PERP",
-    "META-PERP",
-    "TSLA-PERP",
-    "GOOGL-PERP"
+    "BTC-PERP", "ETH-PERP", "SOL-PERP", "HYPE-PERP", "LINK-PERP",
+    "XRP-PERP", "XLM-PERP", "ONDO-PERP", "NVDA-PERP", "CRCL-PERP",
+    "GOLD-PERP", "CL-PERP", "HBAR-PERP", "SUI-PERP", "TAO-PERP",
+    "ALGO-PERP", "ADA-PERP", "META-PERP", "TSLA-PERP", "GOOGL-PERP"
   ],
   "required_capabilities": [
-    "HIGH_VELOCITY_10_20_DAILY_OBJECTIVE",
-    "EARLY_FAILURE_EXIT",
+    "PACKED_ENGINE_FEED_SNAPSHOT",
+    "TEN_TOOL_LOW_LATENCY_LIVE_PATH",
+    "NO_SYNCHRONOUS_GRAPH_REBUILD_IN_ACTION_SELECTION",
+    "ENGINE_NATIVE_PREFLIGHT_FAST_PATH",
+    "BAR_PROGRESS_QUICK_MANAGEMENT",
+    "FRESH_SETUP_FINGERPRINT_REENTRY",
     "IMMEDIATE_EXIT_RERANK_REDEPLOY",
     "NATIVE_FAST_PATH_ON_OPTIONAL_FAILURE",
-    "CUSTOM_RISK_OVERLAY_DISABLED",
     "FULL_POSITION_PROTECTION",
     "EXECUTION_RECEIPT_AUDIT"
   ]
