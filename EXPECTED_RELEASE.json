@@ -1,35 +1,51 @@
 {
-  "scheduler_version": "8.0.0",
-  "gateway_version": "16.0.0",
-  "strategy_contract_version": "37.0.0",
-  "horizons": ["QUICK", "MEDIUM", "LONGER_TERM"],
-  "directions": ["LONG", "SHORT"],
-  "opportunity_graph_max_age_sec": 420,
+  "scheduler_version": "9.0.0",
+  "gateway_version": "17.0.0",
+  "strategy_contract_version": "38.0.0",
+  "horizons": [
+    "QUICK",
+    "MEDIUM",
+    "LONGER_TERM"
+  ],
+  "directions": [
+    "LONG",
+    "SHORT"
+  ],
+  "opportunity_graph_advisory_age_sec": 1800,
   "position_capacity": 18,
+  "daily_completed_trade_objective": {
+    "low": 10,
+    "high": 20
+  },
   "declared_markets": [
-    "BTC-PERP","ETH-PERP","SOL-PERP","HYPE-PERP","LINK-PERP",
-    "XRP-PERP","XLM-PERP","ONDO-PERP","NVDA-PERP","CRCL-PERP",
-    "GOLD-PERP","CL-PERP","HBAR-PERP","SUI-PERP","TAO-PERP",
-    "ALGO-PERP","ADA-PERP","META-PERP","TSLA-PERP","GOOGL-PERP"
+    "BTC-PERP",
+    "ETH-PERP",
+    "SOL-PERP",
+    "HYPE-PERP",
+    "LINK-PERP",
+    "XRP-PERP",
+    "XLM-PERP",
+    "ONDO-PERP",
+    "NVDA-PERP",
+    "CRCL-PERP",
+    "GOLD-PERP",
+    "CL-PERP",
+    "HBAR-PERP",
+    "SUI-PERP",
+    "TAO-PERP",
+    "ALGO-PERP",
+    "ADA-PERP",
+    "META-PERP",
+    "TSLA-PERP",
+    "GOOGL-PERP"
   ],
   "required_capabilities": [
-    "DECLARED_UNIVERSE_HEARTBEAT",
-    "DYNAMIC_COVERAGE_LEDGER",
-    "LONG_SHORT_HYPOTHESIS_GRAPH",
-    "PERSISTENT_HYPOTHESIS_STATE",
-    "EVENT_DRIVEN_DEEP_ANALYSIS",
-    "STRUCTURAL_EVIDENCE_DECISION_COMPLETENESS",
-    "MARGINAL_UTILITY_PORTFOLIO_OPTIMIZER",
-    "EIGHTEEN_SLOT_SEQUENTIAL_CYCLE",
-    "ADAPTIVE_MULTI_HORIZON_PROFIT_CONTROLLER",
-    "ACCOUNT_SCALED_EXIT_ARCHITECTURE",
-    "SMALL_ACCOUNT_FULL_EXIT_CAPITAL_RECYCLE",
-    "VENUE_MINIMUM_SIZE_REPAIR",
-    "GRADED_QUICK_REVALIDATION",
+    "HIGH_VELOCITY_10_20_DAILY_OBJECTIVE",
+    "EARLY_FAILURE_EXIT",
+    "IMMEDIATE_EXIT_RERANK_REDEPLOY",
+    "NATIVE_FAST_PATH_ON_OPTIONAL_FAILURE",
+    "CUSTOM_RISK_OVERLAY_DISABLED",
     "FULL_POSITION_PROTECTION",
-    "CONFIRMATION_AWARE_REPLACEMENT",
-    "REJECTION_SPECIFIC_REPAIR",
-    "EXECUTION_RECEIPT_AUDIT",
-    "VERIFIED_OUTCOME_CALIBRATION"
+    "EXECUTION_RECEIPT_AUDIT"
   ]
 }
