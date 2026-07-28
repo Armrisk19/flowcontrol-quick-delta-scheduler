@@ -1,0 +1,174 @@
+name: FLOWCONTROL Resilient Low-Latency Scheduler v9.2.0
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+    - cron: "2,7,12,17,22,27,32,37,42,47,52,57 * * * *"
+    - cron: "4,14,24,34,44,54 * * * *"
+    - cron: "17 * * * *"
+    - cron: "47 */6 * * *"
+  workflow_dispatch:
+    inputs:
+      force_full_refresh:
+        description: Refresh Quick, queue, graph, and packed feed snapshot now
+        required: false
+        default: true
+        type: boolean
+      force_slow_sources:
+        description: Refresh macro and official sources now
+        required: false
+        default: false
+        type: boolean
+      strict_verify:
+        description: Fail this manual run on a release-contract or critical-readiness mismatch
+        required: false
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+
+# Keep independent scheduler lanes from canceling one another. GitHub may delay
+# scheduled starts; overlapping lanes finish independently and the Gateway uses
+# idempotent refresh locks plus last-known-good state.
+concurrency:
+  group: flowcontrol-v9-2-${{ github.event.schedule || github.event_name }}
+  cancel-in-progress: false
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  GATEWAY_BASE_URL: ${{ secrets.FLOWCONTROL_GATEWAY_BASE_URL || secrets.FLOWCONTROL_GATEWAY_URL || 'https://flowcontrol-omni-x-gateway-a29-c84d.vercel.app' }}
+  GATEWAY_TOKEN: ${{ secrets.OMNI_COGNITIVE_GATEWAY_TOKEN || secrets.FLOWCONTROL_GATEWAY_TOKEN }}
+
+jobs:
+  refresh-and-verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Checkout release contract
+        uses: actions/checkout@v6
+
+      - name: Refresh advisory lanes and packed feed snapshot
+        shell: bash
+        env:
+          EVENT_SCHEDULE: ${{ github.event.schedule }}
+          INPUT_FULL: ${{ github.event.inputs.force_full_refresh }}
+          INPUT_SLOW: ${{ github.event.inputs.force_slow_sources }}
+          INPUT_STRICT: ${{ github.event.inputs.strict_verify }}
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          set -uo pipefail
+          BASE="${GATEWAY_BASE_URL%/}"
+          tmp="$(mktemp -d)"
+          trap 'rm -rf "$tmp"' EXIT
+          token_missing=false
+          if [[ -z "${GATEWAY_TOKEN:-}" ]]; then
+            echo "::warning::Missing Gateway token. Add OMNI_COGNITIVE_GATEWAY_TOKEN or FLOWCONTROL_GATEWAY_TOKEN."
+            token_missing=true
+          fi
+
+          declare -A RESULT
+          request(){
+            local label="$1" method="$2" path="$3" body="$4" auth_required="$5"
+            local out="$tmp/$label.json" code="" auth_header=()
+            if [[ "$auth_required" == true ]]; then
+              if [[ "$token_missing" == true ]]; then
+                RESULT[$label]=SKIPPED_NO_TOKEN
+                echo "::warning::SKIP $label because no Gateway token is configured"
+                return 0
+              fi
+              auth_header=(-H "Authorization: Bearer ${GATEWAY_TOKEN}")
+            fi
+            for attempt in 1 2 3; do
+              if [[ "$method" == POST ]]; then
+                code=$(curl -sS --max-time 95 -o "$out" -w '%{http_code}' -X POST "${auth_header[@]}" -H 'Content-Type: application/json' --data "$body" "$BASE$path" || true)
+              else
+                code=$(curl -sS --max-time 35 -o "$out" -w '%{http_code}' "${auth_header[@]}" "$BASE$path?cb=$(date +%s%N)" || true)
+              fi
+              if [[ "$code" =~ ^2 ]] && node -e 'JSON.parse(require("fs").readFileSync(process.argv[1],"utf8"))' "$out" 2>/dev/null; then
+                RESULT[$label]=PASS
+                echo "PASS $label HTTP $code"
+                return 0
+              fi
+              echo "::warning::RETRY $label HTTP ${code:-none} attempt $attempt"
+              head -c 1200 "$out" 2>/dev/null || true
+              echo
+              sleep $((attempt*3))
+            done
+            RESULT[$label]=FAIL
+            echo "::warning::ADVISORY FAILURE $label; last-known-good state and Engine-native fallback remain active"
+            return 0
+          }
+
+          schedule="${EVENT_SCHEDULE:-manual}"
+          force_full="${INPUT_FULL:-false}"
+          force_slow="${INPUT_SLOW:-false}"
+          strict="${INPUT_STRICT:-false}"
+          run_quick=false; run_queue=false; run_graph=false; run_macro=false; run_official=false
+          case "$schedule" in
+            "*/5 * * * *") run_quick=true ;;
+            "2,7,12,17,22,27,32,37,42,47,52,57 * * * *") run_queue=true ;;
+            "4,14,24,34,44,54 * * * *") run_graph=true ;;
+            "17 * * * *") run_macro=true ;;
+            "47 */6 * * *") run_official=true ;;
+            manual) run_quick=true; run_queue=true; run_graph=true ;;
+          esac
+          if [[ "$force_full" == true ]]; then run_quick=true; run_queue=true; run_graph=true; fi
+          if [[ "$force_slow" == true ]]; then run_macro=true; run_official=true; fi
+
+          [[ "$run_quick" == true ]] && request quick POST /api/quick-delta-refresh '{"reason":"scheduler_v9_2_5m_execution_meter"}' true
+          [[ "$run_queue" == true ]] && request queue POST /api/opportunity-queue '{"refresh":true,"reason":"scheduler_v9_2_5m_lenient_queue"}' true
+          [[ "$run_graph" == true ]] && request graph POST /api/opportunity-graph-refresh '{"reason":"scheduler_v9_2_10m_directional_meter","force":false}' true
+          [[ "$run_macro" == true ]] && request macro POST /api/macro-event-refresh '{"reason":"scheduler_v9_2_hourly"}' true
+          [[ "$run_official" == true ]] && request official POST /api/official-source-refresh '{"reason":"scheduler_v9_2_6h"}' true
+
+          # Repack all public Engine feed identifiers after any fast intelligence lane.
+          if [[ "$run_quick" == true || "$run_queue" == true || "$run_graph" == true ]]; then
+            request packed_feed POST /api/engine-feed-snapshot-refresh '{"reason":"scheduler_v9_2_post_refresh"}' true
+          fi
+
+          request health GET /api/health '' false
+          request manifest GET /api/release-manifest '' false
+          request readiness GET /api/readiness '' false
+          request graph_status GET /api/opportunity-graph-status '' false
+
+          node - "$tmp" "$EVENT_NAME" "$strict" <<'NODE'
+          const fs=require('fs'),path=require('path');
+          const dir=process.argv[2], eventName=process.argv[3], strictInput=String(process.argv[4]).toLowerCase()==='true';
+          const strict=eventName==='workflow_dispatch'&&strictInput;
+          const read=(name)=>{try{return JSON.parse(fs.readFileSync(path.join(dir,name),'utf8'))}catch{return null}};
+          const expected=JSON.parse(fs.readFileSync('EXPECTED_RELEASE.json','utf8'));
+          const health=read('health.json'),manifest=read('manifest.json'),ready=read('readiness.json'),graph=read('graph_status.json'),packed=read('packed_feed.json');
+          const problems=[];
+          for(const [label,x] of [['health',health],['manifest',manifest]]){
+            if(!x){problems.push(`${label}_unavailable`);continue}
+            if(x.gateway_version!==expected.gateway_version||x.strategy_contract_version!==expected.strategy_contract_version||x.scheduler_contract_version!==expected.scheduler_version){
+              problems.push(`${label}_version_contract_mismatch`);
+            }
+          }
+          if(!ready) problems.push('readiness_unavailable');
+          else if(ready.internal_contract_sync!==true||(ready.critical_blockers||[]).length) problems.push('critical_readiness');
+          if(manifest&&JSON.stringify(manifest.declared_markets)!==JSON.stringify(expected.declared_markets)) problems.push('universe_mismatch');
+          if(packed&&packed.snapshot_version!==expected.gateway_version) problems.push('packed_feed_version_mismatch');
+          if(graph&&Number(graph.age_sec)>expected.opportunity_graph_advisory_age_sec){
+            console.warn('Graph aging; Engine-native fallback remains active',graph.age_sec);
+          }
+          const summary={
+            strict,
+            problems,
+            gateway_version:health?.gateway_version??null,
+            strategy_contract_version:health?.strategy_contract_version??null,
+            scheduler_contract_version:health?.scheduler_contract_version??null,
+            readiness_status:ready?.status??null,
+            advisories:ready?.advisories||[],
+            graph_age_sec:graph?.age_sec??null,
+            packed_snapshot_id:packed?.snapshot_id??null,
+            packed_snapshot_computed_at:packed?.computed_at??null
+          };
+          console.log(JSON.stringify(summary,null,2));
+          if(problems.length){
+            const text=`FLOWCONTROL advisory verification problems: ${problems.join(', ')}`;
+            if(strict){console.error(text);process.exit(1)}
+            console.warn(text);
+          }
+          NODE
