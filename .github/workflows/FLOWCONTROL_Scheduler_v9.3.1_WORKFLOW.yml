@@ -1,0 +1,170 @@
+name: FLOWCONTROL Action Signal Scheduler v9.3.1
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+    - cron: "7 * * * *"
+    - cron: "37 */6 * * *"
+  workflow_dispatch:
+    inputs:
+      force_macro_refresh:
+        description: Force a fresh macro/event research refresh
+        required: false
+        default: false
+        type: boolean
+      strict_verify:
+        description: Fail this manual run on a release, storage, or action-signal mismatch
+        required: false
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: flowcontrol-action-signal-v9-3-1-${{ github.event.schedule || github.event_name }}
+  cancel-in-progress: true
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  GATEWAY_BASE_URL: ${{ secrets.FLOWCONTROL_GATEWAY_BASE_URL || secrets.FLOWCONTROL_GATEWAY_URL || 'https://flowcontrol-omni-x-gateway-a29-c84d.vercel.app' }}
+  GATEWAY_TOKEN: ${{ secrets.OMNI_COGNITIVE_GATEWAY_TOKEN || secrets.FLOWCONTROL_GATEWAY_TOKEN }}
+
+jobs:
+  refresh-action-intelligence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout scheduler contract
+        uses: actions/checkout@v6
+
+      - name: Refresh signals, learning, and release health
+        shell: bash
+        env:
+          EVENT_SCHEDULE: ${{ github.event.schedule }}
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_FORCE_MACRO: ${{ github.event.inputs.force_macro_refresh }}
+          INPUT_STRICT: ${{ github.event.inputs.strict_verify }}
+        run: |
+          set -uo pipefail
+          BASE="${GATEWAY_BASE_URL%/}"
+          tmp="$(mktemp -d)"
+          trap 'rm -rf "$tmp"' EXIT
+
+          if [[ -z "${GATEWAY_TOKEN:-}" ]]; then
+            echo "::error::Missing OMNI_COGNITIVE_GATEWAY_TOKEN or FLOWCONTROL_GATEWAY_TOKEN"
+            exit 1
+          fi
+
+          request(){
+            local label="$1" method="$2" path="$3" body="$4" auth="$5" max_time="$6"
+            local out="$tmp/$label.json" code="" headers=()
+            [[ "$auth" == true ]] && headers=(-H "Authorization: Bearer ${GATEWAY_TOKEN}")
+            for attempt in 1 2 3; do
+              if [[ "$method" == POST ]]; then
+                code=$(curl -sS --max-time "$max_time" -o "$out" -w '%{http_code}' -X POST "${headers[@]}" -H 'Content-Type: application/json' --data "$body" "$BASE$path" || true)
+              else
+                code=$(curl -sS --max-time "$max_time" -o "$out" -w '%{http_code}' "${headers[@]}" "$BASE$path?cb=$(date +%s%N)" || true)
+              fi
+              if [[ "$code" =~ ^2 ]] && node -e 'JSON.parse(require("fs").readFileSync(process.argv[1],"utf8"))' "$out" 2>/dev/null; then
+                echo "PASS $label HTTP $code"
+                return 0
+              fi
+              echo "::warning::RETRY $label HTTP ${code:-none} attempt $attempt"
+              head -c 1200 "$out" 2>/dev/null || true
+              echo
+              sleep $((attempt*3))
+            done
+            echo "::warning::FAILED $label after retries"
+            return 0
+          }
+
+          schedule="${EVENT_SCHEDULE:-manual}"
+          manual=false
+          [[ "${EVENT_NAME:-}" == workflow_dispatch ]] && manual=true
+          strict=false
+          [[ "$manual" == true && "${INPUT_STRICT:-false}" == true ]] && strict=true
+          force_macro=false
+          [[ "${INPUT_FORCE_MACRO:-false}" == true ]] && force_macro=true
+
+          run_adaptive=false
+          [[ "$manual" == true || "$schedule" == "7 * * * *" || "$schedule" == "37 */6 * * *" ]] && run_adaptive=true
+          run_macro=false
+          [[ "$manual" == true || "$schedule" == "37 */6 * * *" ]] && run_macro=true
+          run_verify=false
+          [[ "$manual" == true || "$schedule" == "37 */6 * * *" ]] && run_verify=true
+
+          request action POST /api/omni-action-signal '{"action":"REFRESH","force":true,"decision_id":"scheduler-v9.3.1"}' true 55
+
+          if [[ "$run_adaptive" == true ]]; then
+            request adaptive POST /api/omni-adaptive-learning '{"action":"REFRESH","decision_id":"scheduler-v9.3.1"}' true 35
+          fi
+
+          if [[ "$run_macro" == true ]]; then
+            if [[ "$force_macro" == true ]]; then
+              request macro POST /api/macro-event-refresh '{"force":true,"reason":"scheduler_v9_3_1_manual_force"}' true 95
+            else
+              request macro POST /api/macro-event-refresh '{"status_only":false}' true 95
+            fi
+          fi
+
+          if [[ "$run_verify" == true ]]; then
+            request health POST /api/health '{"full":true}' false 35
+            request capabilities POST /api/gateway-capabilities '{"full":true}' false 35
+            request action_ready_feed POST /api/strategy-feed '{"identifier":"fc_action_ready","markets":["BTC-PERP","ETH-PERP","HYPE-PERP","ONDO-PERP"]}' true 35
+            request action_age_feed POST /api/strategy-feed '{"identifier":"fc_action_age_sec","markets":["BTC-PERP","ETH-PERP","HYPE-PERP","ONDO-PERP"]}' true 35
+            request adaptive_feed POST /api/strategy-feed '{"identifier":"adaptive_profile_ready"}' true 35
+          fi
+
+          node - "$tmp" "$strict" "$run_verify" "$run_adaptive" <<'NODE'
+          const fs=require('fs'),path=require('path');
+          const dir=process.argv[2];
+          const strict=String(process.argv[3]).toLowerCase()==='true';
+          const verify=String(process.argv[4]).toLowerCase()==='true';
+          const adaptiveExpected=String(process.argv[5]).toLowerCase()==='true';
+          const read=(name)=>{try{return JSON.parse(fs.readFileSync(path.join(dir,`${name}.json`),'utf8'))}catch{return null}};
+          const expected=JSON.parse(fs.readFileSync('EXPECTED_RELEASE.json','utf8'));
+          const action=read('action'),health=read('health'),cap=read('capabilities'),adaptive=read('adaptive');
+          const readyFeed=read('action_ready_feed'),ageFeed=read('action_age_feed'),adaptiveFeed=read('adaptive_feed');
+          const problems=[];
+          if(!action||action.ok!==true)problems.push('action_signal_refresh_failed');
+          const snap=action?.snapshot||{};
+          if(!snap.computed_at||Number(snap.market_count)!==expected.expected_market_count)problems.push('action_signal_snapshot_incomplete');
+          if(adaptiveExpected&&(!adaptive||adaptive.ok!==true))problems.push('adaptive_refresh_failed');
+          if(verify){
+            if(!health)problems.push('health_unavailable');
+            else{
+              if(health.gateway_version!==expected.gateway_version)problems.push('gateway_version_mismatch');
+              if(Number(health.tool_count)!==expected.expected_tool_count)problems.push('tool_count_mismatch');
+              if(Number(health.route_count)<expected.expected_route_minimum)problems.push('route_inventory_incomplete');
+              if(health.persistent_storage_healthy!==true)problems.push('persistent_storage_unhealthy');
+              if(health.action_signal_ready!==true)problems.push('action_signal_not_ready');
+            }
+            if(!cap)problems.push('capabilities_unavailable');
+            else if(cap.action_signal?.deterministic_15m_1h!==true||cap.action_signal?.may_place_orders!==false)problems.push('action_signal_capability_missing');
+            const readyValues=readyFeed?.values||{};
+            const ageValues=ageFeed?.values||{};
+            for(const market of expected.verify_markets){
+              if(!Number.isFinite(Number(readyValues[market])))problems.push(`action_ready_invalid_${market}`);
+              if(!Number.isFinite(Number(ageValues[market])))problems.push(`action_age_invalid_${market}`);
+            }
+            if(!adaptiveFeed||!Number.isFinite(Number(adaptiveFeed.value)))problems.push('adaptive_feed_invalid');
+          }
+          const summary={
+            strict,verify,problems,
+            gateway_version:health?.gateway_version??null,
+            action_status:action?.status??null,
+            action_signal_version:snap.signal_version??null,
+            action_computed_at:snap.computed_at??null,
+            action_market_count:snap.market_count??null,
+            action_ready_count:snap.ready_count??null,
+            adaptive_status:adaptive?.status??null,
+            macro_status:read('macro')?.status??read('macro')?.last_status??null
+          };
+          console.log(JSON.stringify(summary,null,2));
+          if(problems.length){
+            const text=`FLOWCONTROL v9.3.1 verification problems: ${problems.join(', ')}`;
+            if(strict){console.error(text);process.exit(1)}
+            console.warn(text);
+          }
+          NODE
