@@ -1,11 +1,17 @@
 {
-  "strategy_version": "38.5.1",
-  "gateway_version": "17.3.1",
-  "scheduler_version": "9.2.0",
-  "directional_execution_meter_version": "directional-execution-meter-v1.1.0",
-  "direct_entry_score_floor": 28,
-  "armed_trigger_score_floor": 22,
-  "flat_account_activity_promotion_floor": 26,
-  "daily_completed_trade_target": 10,
-  "execution_authority": "ENGINE_NATIVE_ONLY"
+  "gateway_version": "4.5.0",
+  "scheduler_version": "9.3.0",
+  "expected_tool_count": 14,
+  "expected_route_minimum": 32,
+  "adaptive_learning_route": "/api/omni-adaptive-learning",
+  "required_adaptive_identifiers": [
+    "adaptive_profile_ready",
+    "adaptive_risk_multiplier",
+    "adaptive_entry_aggression",
+    "adaptive_management_bias",
+    "adaptive_market_weight",
+    "adaptive_market_confidence",
+    "adaptive_market_sample_count",
+    "adaptive_market_expectancy_r"
+  ]
 }
