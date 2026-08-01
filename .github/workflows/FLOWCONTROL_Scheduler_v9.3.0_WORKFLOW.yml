@@ -1,0 +1,136 @@
+name: FLOWCONTROL Adaptive Learning Scheduler v9.3.0
+
+on:
+  schedule:
+    - cron: "7 * * * *"
+    - cron: "37 */6 * * *"
+  workflow_dispatch:
+    inputs:
+      force_macro_refresh:
+        description: Force a fresh macro/event research refresh
+        required: false
+        default: false
+        type: boolean
+      strict_verify:
+        description: Fail this manual run on a release or persistence mismatch
+        required: false
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: flowcontrol-adaptive-v9-3-${{ github.event.schedule || github.event_name }}
+  cancel-in-progress: false
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  GATEWAY_BASE_URL: ${{ secrets.FLOWCONTROL_GATEWAY_BASE_URL || secrets.FLOWCONTROL_GATEWAY_URL || 'https://flowcontrol-omni-x-gateway-a29-c84d.vercel.app' }}
+  GATEWAY_TOKEN: ${{ secrets.OMNI_COGNITIVE_GATEWAY_TOKEN || secrets.FLOWCONTROL_GATEWAY_TOKEN }}
+
+jobs:
+  refresh-adaptive-learning:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout scheduler contract
+        uses: actions/checkout@v6
+
+      - name: Refresh learning and verify gateway
+        shell: bash
+        env:
+          EVENT_SCHEDULE: ${{ github.event.schedule }}
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_FORCE_MACRO: ${{ github.event.inputs.force_macro_refresh }}
+          INPUT_STRICT: ${{ github.event.inputs.strict_verify }}
+        run: |
+          set -uo pipefail
+          BASE="${GATEWAY_BASE_URL%/}"
+          tmp="$(mktemp -d)"
+          trap 'rm -rf "$tmp"' EXIT
+
+          if [[ -z "${GATEWAY_TOKEN:-}" ]]; then
+            echo "::error::Missing OMNI_COGNITIVE_GATEWAY_TOKEN or FLOWCONTROL_GATEWAY_TOKEN"
+            exit 1
+          fi
+
+          request(){
+            local label="$1" method="$2" path="$3" body="$4" auth="$5" max_time="$6"
+            local out="$tmp/$label.json" code="" headers=()
+            [[ "$auth" == true ]] && headers=(-H "Authorization: Bearer ${GATEWAY_TOKEN}")
+            for attempt in 1 2 3; do
+              if [[ "$method" == POST ]]; then
+                code=$(curl -sS --max-time "$max_time" -o "$out" -w '%{http_code}' -X POST "${headers[@]}" -H 'Content-Type: application/json' --data "$body" "$BASE$path" || true)
+              else
+                code=$(curl -sS --max-time "$max_time" -o "$out" -w '%{http_code}' "${headers[@]}" "$BASE$path?cb=$(date +%s%N)" || true)
+              fi
+              if [[ "$code" =~ ^2 ]] && node -e 'JSON.parse(require("fs").readFileSync(process.argv[1],"utf8"))' "$out" 2>/dev/null; then
+                echo "PASS $label HTTP $code"
+                return 0
+              fi
+              echo "::warning::RETRY $label HTTP ${code:-none} attempt $attempt"
+              head -c 1200 "$out" 2>/dev/null || true
+              echo
+              sleep $((attempt*3))
+            done
+            echo "::warning::FAILED $label after retries"
+            return 0
+          }
+
+          schedule="${EVENT_SCHEDULE:-manual}"
+          strict=false
+          [[ "${EVENT_NAME:-}" == workflow_dispatch && "${INPUT_STRICT:-false}" == true ]] && strict=true
+          force_macro=false
+          [[ "${INPUT_FORCE_MACRO:-false}" == true ]] && force_macro=true
+
+          request adaptive POST /api/omni-adaptive-learning '{"action":"REFRESH","decision_id":"scheduler-v9.3.0"}' true 35
+          if [[ "$force_macro" == true ]]; then
+            request macro POST /api/macro-event-refresh '{"force":true,"reason":"scheduler_v9_3_manual_force"}' true 95
+          else
+            request macro POST /api/macro-event-refresh '{"status_only":false}' true 95
+          fi
+          request health POST /api/health '{"full":true}' false 35
+          request capabilities POST /api/gateway-capabilities '{"full":true}' false 35
+          request adaptive_feed POST /api/strategy-feed '{"identifier":"adaptive_profile_ready"}' true 35
+          request adaptive_market_feed POST /api/strategy-feed '{"identifier":"adaptive_market_weight","markets":["BTC-PERP","ETH-PERP"]}' true 35
+
+          node - "$tmp" "$strict" <<'NODE'
+          const fs=require('fs'),path=require('path');
+          const dir=process.argv[2], strict=String(process.argv[3]).toLowerCase()==='true';
+          const read=(name)=>{try{return JSON.parse(fs.readFileSync(path.join(dir,`${name}.json`),'utf8'))}catch{return null}};
+          const expected=JSON.parse(fs.readFileSync('EXPECTED_RELEASE.json','utf8'));
+          const health=read('health'),cap=read('capabilities'),adaptive=read('adaptive'),feed=read('adaptive_feed'),marketFeed=read('adaptive_market_feed');
+          const problems=[];
+          if(!health)problems.push('health_unavailable');
+          else{
+            if(health.gateway_version!==expected.gateway_version)problems.push('gateway_version_mismatch');
+            if(Number(health.tool_count)!==expected.expected_tool_count)problems.push('tool_count_mismatch');
+            if(Number(health.route_count)<expected.expected_route_minimum)problems.push('route_inventory_incomplete');
+            if(health.persistent_storage_healthy!==true)problems.push('persistent_storage_unhealthy');
+            if(health.adaptive_learning_ready!==true)problems.push('adaptive_learning_not_ready');
+          }
+          if(!cap)problems.push('capabilities_unavailable');
+          else if(cap.learning?.automatic_profile_refresh!==true||cap.learning?.profile_rollback!==true)problems.push('adaptive_capability_missing');
+          if(!adaptive||adaptive.ok!==true)problems.push('adaptive_refresh_failed');
+          if(!feed||!Number.isFinite(Number(feed.value)))problems.push('adaptive_global_feed_invalid');
+          const marketValues=marketFeed?.values||{};
+          if(!Number.isFinite(Number(marketValues['BTC-PERP']))||!Number.isFinite(Number(marketValues['ETH-PERP'])))problems.push('adaptive_market_feed_invalid');
+          const summary={
+            strict,
+            problems,
+            gateway_version:health?.gateway_version??null,
+            persistent_storage_healthy:health?.persistent_storage_healthy??null,
+            adaptive_profile_version:health?.adaptive_profile_version??adaptive?.profile?.profile_version??null,
+            adaptive_profile_status:health?.adaptive_profile_status??adaptive?.profile?.status??null,
+            adaptive_sample_count:health?.adaptive_sample_count??adaptive?.sample_count??null,
+            adaptive_refresh_status:adaptive?.status??null,
+            macro_refresh_status:read('macro')?.status??read('macro')?.last_status??null
+          };
+          console.log(JSON.stringify(summary,null,2));
+          if(problems.length){
+            const text=`FLOWCONTROL v9.3.0 verification problems: ${problems.join(', ')}`;
+            if(strict){console.error(text);process.exit(1)}
+            console.warn(text);
+          }
+          NODE
