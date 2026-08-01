@@ -1,20 +1,21 @@
-# FLOWCONTROL Adaptive Learning Scheduler v9.3.0
+# FLOWCONTROL Action Signal Scheduler v9.3.1
 
-This scheduler is matched to Gateway v4.5.0 and Omni X v38.8.0.
+This scheduler keeps the deterministic action signal fresh without pretending to control Engine orders.
 
-It performs only jobs that actually exist in the gateway:
+- Every 5 minutes: refresh the 15m + 1h action signal for the 20-market universe.
+- Every hour at :07: refresh bounded adaptive learning from verified closed trades.
+- Every six hours at :37: refresh macro/event memory and verify the coordinated release.
+- Manual strict run: refresh all components and fail on a version, storage, route, or signal mismatch.
 
-- refresh the bounded adaptive profile every hour;
-- refresh/check the persistent macro-event ledger every hour;
-- verify full gateway health, capabilities, and adaptive feed output;
-- run a stricter six-hour release and persistence check;
-- preserve last-known-good adaptive state when an advisory refresh fails.
+Required GitHub Actions secrets:
 
-It deliberately removes the old quick-delta, queue, opportunity-graph, packed-feed, readiness, and release-manifest calls because those routes do not exist in the v4.5.0 gateway.
+- `FLOWCONTROL_GATEWAY_BASE_URL` (optional when using the included production default)
+- `OMNI_COGNITIVE_GATEWAY_TOKEN`
 
-Required GitHub secrets:
+The scheduler refreshes gateway intelligence. It does not invoke private Engine reviews, sign orders, or submit trades.
 
-- `FLOWCONTROL_GATEWAY_BASE_URL` or `FLOWCONTROL_GATEWAY_URL`
-- `OMNI_COGNITIVE_GATEWAY_TOKEN` or `FLOWCONTROL_GATEWAY_TOKEN`
+Install the workflow at:
 
-The gateway uses the dedicated bearer token as a private persistence scope when Engine does not provide an agent instance ID. Upstash must remain configured in Vercel for durable learning across deployments.
+`.github/workflows/FLOWCONTROL_Scheduler_v9.3.1_WORKFLOW.yml`
+
+Disable the v9.3.0 workflow before enabling this version.

@@ -1,17 +1,20 @@
 {
-  "gateway_version": "4.5.0",
-  "scheduler_version": "9.3.0",
-  "expected_tool_count": 14,
-  "expected_route_minimum": 32,
-  "adaptive_learning_route": "/api/omni-adaptive-learning",
-  "required_adaptive_identifiers": [
-    "adaptive_profile_ready",
-    "adaptive_risk_multiplier",
-    "adaptive_entry_aggression",
-    "adaptive_management_bias",
-    "adaptive_market_weight",
-    "adaptive_market_confidence",
-    "adaptive_market_sample_count",
-    "adaptive_market_expectancy_r"
-  ]
+  "gateway_version": "4.5.1",
+  "strategy_version": "38.8.1",
+  "scheduler_version": "9.3.1",
+  "expected_tool_count": 15,
+  "expected_route_minimum": 33,
+  "expected_market_count": 20,
+  "action_signal_route": "/api/omni-action-signal",
+  "required_action_identifiers": [
+    "fc_action_direction",
+    "fc_action_strength",
+    "fc_action_ready",
+    "fc_action_route",
+    "fc_stop_atr_mult",
+    "fc_target_r",
+    "fc_horizon_code",
+    "fc_action_age_sec"
+  ],
+  "verify_markets": ["BTC-PERP", "ETH-PERP", "HYPE-PERP", "ONDO-PERP"]
 }
